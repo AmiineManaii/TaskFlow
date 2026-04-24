@@ -27,9 +27,21 @@ class SettingsScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.settings)),
-      body: ListView(
-        children: [
-          // Profil utilisateur
+      body: RefreshIndicator(
+        onRefresh: () async {
+          if (user != null) {
+            // Recharger les projets (qui recharge aussi les données locales depuis l'API)
+            await ref
+                .read(projectControllerProvider(user.id).notifier)
+                .loadProjects();
+            // Recharger les tâches assignées
+            await ref.read(assignedTasksProvider(user.id).notifier).load();
+          }
+        },
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: [
+            // Profil utilisateur
           if (user != null)
             Container(
               margin: const EdgeInsets.all(16),
@@ -202,7 +214,7 @@ class SettingsScreen extends ConsumerWidget {
           const SizedBox(height: 16),
         ],
       ),
-    );
+    ));
   }
 
   void _showSyncDialog(BuildContext context, WidgetRef ref) async {

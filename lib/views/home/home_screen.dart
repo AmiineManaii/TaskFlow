@@ -225,6 +225,8 @@ class _ProjectsTabState extends ConsumerState<_ProjectsTab> {
               itemBuilder: (ctx, i) {
                 final p = projects[i];
                 final stats = _stats[p.id];
+                final isOwner = p.ownerId == widget.userId;
+
                 return ProjectCard(
                   project: p,
                   totalTasks: stats?.$1 ?? 0,
@@ -242,8 +244,8 @@ class _ProjectsTabState extends ConsumerState<_ProjectsTab> {
                         .read(projectControllerProvider(widget.userId).notifier)
                         .loadProjects();
                   }),
-                  onEdit: () => _openProjectForm(project: p),
-                  onDelete: () => _deleteProject(ctx, p.id),
+                  onEdit: isOwner ? () => _openProjectForm(project: p) : null,
+                  onDelete: isOwner ? () => _deleteProject(ctx, p.id) : null,
                 );
               },
             ),

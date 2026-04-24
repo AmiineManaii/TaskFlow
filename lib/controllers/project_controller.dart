@@ -30,7 +30,13 @@ class ProjectController extends StateNotifier<AsyncValue<List<ProjectModel>>> {
     state = const AsyncValue.loading();
     try {
       // 1. Charger SQLite (tous les projets stockés localement)
-      final localProjects = await _db.getAllProjects();
+      final allLocal = await _db.getAllProjects();
+
+      // Filtrer : l'utilisateur doit être soit le créateur, soit un membre
+      final localProjects = allLocal
+          .where((p) => p.ownerId == _ownerId || p.memberIds.contains(_ownerId))
+          .toList();
+
       if (localProjects.isNotEmpty) {
         state = AsyncValue.data(localProjects);
       }
@@ -44,10 +50,15 @@ class ProjectController extends StateNotifier<AsyncValue<List<ProjectModel>>> {
           await _db.insertProject(p);
         }
 
-        final updatedProjects = await _db.getAllProjects();
-        state = AsyncValue.data(updatedProjects);
+        final updatedAll = await _db.getAllProjects();
+        final filteredProjects = updatedAll
+            .where(
+                (p) => p.ownerId == _ownerId || p.memberIds.contains(_ownerId))
+            .toList();
+
+        state = AsyncValue.data(filteredProjects);
       } catch (e) {
-        // En cas d'erreur API, on garde les données locales si elles existent
+        // En cas d'erreur API, on garde les données locales filtrées
         if (localProjects.isEmpty) {
           state = const AsyncValue.data([]);
         } else {
@@ -70,6 +81,7 @@ class ProjectController extends StateNotifier<AsyncValue<List<ProjectModel>>> {
       description: description,
       color: color,
       ownerId: _ownerId,
+      memberIds: [_ownerId], // Le créateur est membre par défaut
       createdAt: DateTime.now(),
     );
     await _db.insertProject(project);
@@ -79,15 +91,43 @@ class ProjectController extends StateNotifier<AsyncValue<List<ProjectModel>>> {
   }
 
   Future<void> updateProject(ProjectModel project) async {
+    // Seul le propriétaire peut modifier
+    if (project.ownerId != _ownerId) {
+      throw Exception("Seul le créateur peut modifier ce projet");
+    }
     await _db.updateProject(project);
     _syncProjectUpdate(project);
     await loadProjects();
   }
 
   Future<void> deleteProject(String id) async {
+    final project = await _db.getProjectById(id);
+    if (project != null && project.ownerId != _ownerId) {
+      throw Exception("Seul le créateur peut supprimer ce projet");
+    }
     await _db.deleteProject(id);
     _syncProjectDelete(id);
     await loadProjects();
+  }
+
+  Future<void> addMember(String projectId, String memberId) async {
+    final project = await _db.getProjectById(projectId);
+    if (project == null) return;
+
+    // Seul le propriétaire peut ajouter des membres
+    if (project.ownerId != _ownerId) {
+      throw Exception("Seul le créateur peut ajouter des membres");
+    }
+
+    if (!project.memberIds.contains(memberId)) {
+      final updated = project.copyWith(
+        memberIds: [...project.memberIds, memberId],
+        isSynced: false,
+      );
+      await _db.updateProject(updated);
+      _syncProjectUpdate(updated);
+      await loadProjects();
+    }
   }
 
   void _syncProjectCreate(ProjectModel project) async {

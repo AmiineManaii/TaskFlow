@@ -21,7 +21,7 @@ class DatabaseHelper {
     return openDatabase(
       path,
       onCreate: _createDB,
-      version: 2,
+      version: 3,
       onUpgrade: _onUpgrade,
     );
   }
@@ -29,7 +29,13 @@ class DatabaseHelper {
   Future _onUpgrade(Database db, int oldVersion, int newVersion) async {
     if (oldVersion < 2) {
       // Ajout de la colonne isSynced à la table projects
-      await db.execute('ALTER TABLE projects ADD COLUMN isSynced INTEGER DEFAULT 0');
+      await db.execute(
+          'ALTER TABLE projects ADD COLUMN isSynced INTEGER DEFAULT 0');
+    }
+    if (oldVersion < 3) {
+      // Ajout de la colonne memberIds à la table projects
+      await db
+          .execute('ALTER TABLE projects ADD COLUMN memberIds TEXT DEFAULT ""');
     }
   }
 
@@ -51,6 +57,7 @@ class DatabaseHelper {
         description TEXT,
         color TEXT DEFAULT '#2563EB',
         ownerId TEXT NOT NULL,
+        memberIds TEXT DEFAULT '',
         createdAt TEXT NOT NULL,
         isSynced INTEGER DEFAULT 0
       )

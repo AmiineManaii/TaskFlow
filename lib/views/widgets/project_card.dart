@@ -77,22 +77,25 @@ class ProjectCard extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      PopupMenuButton<String>(
-                        iconSize: 18,
-                        itemBuilder: (_) => [
-                          const PopupMenuItem(
-                              value: 'edit', child: Text('Modifier')),
-                          const PopupMenuItem(
-                              value: 'delete',
-                              child: Text('Supprimer',
-                                  style: TextStyle(color: Colors.red))),
-                        ],
-                        onSelected: (val) {
-                          if (val == 'edit' && onEdit != null) onEdit!();
-                          if (val == 'delete' && onDelete != null)
-                            onDelete!();
-                        },
-                      ),
+                      if (onEdit != null || onDelete != null)
+                        PopupMenuButton<String>(
+                          iconSize: 18,
+                          itemBuilder: (_) => [
+                            if (onEdit != null)
+                              const PopupMenuItem(
+                                  value: 'edit', child: Text('Modifier')),
+                            if (onDelete != null)
+                              const PopupMenuItem(
+                                  value: 'delete',
+                                  child: Text('Supprimer',
+                                      style: TextStyle(color: Colors.red))),
+                          ],
+                          onSelected: (val) {
+                            if (val == 'edit' && onEdit != null) onEdit!();
+                            if (val == 'delete' && onDelete != null)
+                              onDelete!();
+                          },
+                        ),
                     ],
                   ),
 

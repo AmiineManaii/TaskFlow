@@ -6,6 +6,7 @@ class ProjectModel {
   final String description;
   final String color;
   final String ownerId;
+  final List<String> memberIds;
   final DateTime createdAt;
   final bool isSynced;
 
@@ -15,21 +16,33 @@ class ProjectModel {
     required this.description,
     required this.color,
     required this.ownerId,
+    this.memberIds = const [],
     required this.createdAt,
     this.isSynced = false,
   });
 
-  factory ProjectModel.fromMap(Map<String, dynamic> map) => ProjectModel(
-        id: map['id']?.toString() ?? '',
-        name: map['name'] ?? '',
-        description: map['description'] ?? '',
-        color: _cleanColor(map['color']),
-        ownerId: map['ownerId']?.toString() ?? '',
-        createdAt: map['createdAt'] != null
-            ? DateTime.tryParse(map['createdAt'].toString()) ?? DateTime.now()
-            : DateTime.now(),
-        isSynced: map['isSynced'] == true || map['isSynced'] == 1,
-      );
+  factory ProjectModel.fromMap(Map<String, dynamic> map) {
+    List<String> members = [];
+    if (map['memberIds'] != null) {
+      final rawMembers = map['memberIds'].toString();
+      if (rawMembers.isNotEmpty) {
+        members = rawMembers.split(',').where((m) => m.isNotEmpty).toList();
+      }
+    }
+
+    return ProjectModel(
+      id: map['id']?.toString() ?? '',
+      name: map['name'] ?? '',
+      description: map['description'] ?? '',
+      color: _cleanColor(map['color']),
+      ownerId: map['ownerId']?.toString() ?? '',
+      memberIds: members,
+      createdAt: map['createdAt'] != null
+          ? DateTime.tryParse(map['createdAt'].toString()) ?? DateTime.now()
+          : DateTime.now(),
+      isSynced: map['isSynced'] == true || map['isSynced'] == 1,
+    );
+  }
 
   static String _cleanColor(dynamic color) {
     if (color == null) return '#2563EB';
@@ -48,6 +61,7 @@ class ProjectModel {
         'description': description,
         'color': color,
         'ownerId': ownerId,
+        'memberIds': memberIds.join(','),
         'createdAt': createdAt.toIso8601String(),
         'isSynced': isSynced ? 1 : 0,
       };
@@ -57,6 +71,7 @@ class ProjectModel {
         'description': description,
         'color': color,
         'ownerId': ownerId,
+        'memberIds': memberIds.join(','),
         'createdAt': createdAt.toIso8601String(),
       };
 
@@ -66,6 +81,7 @@ class ProjectModel {
     String? description,
     String? color,
     String? ownerId,
+    List<String>? memberIds,
     DateTime? createdAt,
     bool? isSynced,
   }) =>
@@ -75,6 +91,7 @@ class ProjectModel {
         description: description ?? this.description,
         color: color ?? this.color,
         ownerId: ownerId ?? this.ownerId,
+        memberIds: memberIds ?? this.memberIds,
         createdAt: createdAt ?? this.createdAt,
         isSynced: isSynced ?? this.isSynced,
       );

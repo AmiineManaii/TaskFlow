@@ -3,12 +3,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../l10n/app_localizations.dart';
 import '../../controllers/task_controller.dart';
 import '../../core/database/database_helper.dart';
+import '../../controllers/project_controller.dart';
 import '../../models/project_model.dart';
 import '../../models/task_model.dart';
 import '../../models/user_model.dart';
 import '../tasks/task_form_screen.dart';
 import '../tasks/task_detail_screen.dart';
 import '../widgets/task_card.dart';
+import '../widgets/user_avatar.dart';
+import 'project_form_screen.dart';
 
 class ProjectDetailScreen extends ConsumerStatefulWidget {
   final ProjectModel project;
@@ -95,16 +98,151 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen>
     return tasks.where((t) => t.status == status).toList();
   }
 
+  void _openProjectForm() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => ProjectFormScreen(
+        userId: widget.userId,
+        project: widget.project,
+      ),
+    );
+  }
+
+  void _deleteProject(String id) async {
+    final l10n = AppLocalizations.of(context)!;
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(l10n.deleteProject),
+        content: Text(l10n.deleteProjectConfirm),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text(l10n.cancel)),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: Text(l10n.delete),
+          ),
+        ],
+      ),
+    );
+    if (confirm == true) {
+      await ref
+          .read(projectControllerProvider(widget.userId).notifier)
+          .deleteProject(id);
+      if (mounted) Navigator.pop(context);
+    }
+  }
+
+  void _showAddMemberDialog(ProjectModel project) async {
+    final l10n = AppLocalizations.of(context)!;
+    final allUsers = await DatabaseHelper.instance.getAllUsers();
+    // Exclure ceux qui sont déjà membres
+    final potentialMembers =
+        allUsers.where((u) => !project.memberIds.contains(u.id)).toList();
+
+    if (!mounted) return;
+
+    if (potentialMembers.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text("Tous les utilisateurs sont déjà membres")),
+      );
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Ajouter un membre"),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: potentialMembers.length,
+            itemBuilder: (ctx, i) {
+              final user = potentialMembers[i];
+              return ListTile(
+                leading: UserAvatar(user: user, size: 32),
+                title: Text(user.name),
+                subtitle: Text(user.email),
+                onTap: () async {
+                  try {
+                    await ref
+                        .read(projectControllerProvider(widget.userId).notifier)
+                        .addMember(project.id, user.id);
+                    if (ctx.mounted) Navigator.pop(ctx);
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                            content: Text("${user.name} ajouté au projet")),
+                      );
+                    }
+                  } catch (e) {
+                    if (ctx.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text("Erreur: $e")),
+                      );
+                    }
+                  }
+                },
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(l10n.cancel),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context)!;
-    final color = widget.project.colorValue;
-    final tasksState = ref.watch(taskControllerProvider(widget.project.id));
+    final projectsState = ref.watch(projectControllerProvider(widget.userId));
+
+    // Récupérer le projet à jour depuis le state du controller
+    final currentProject = projectsState.when(
+      data: (projects) => projects.firstWhere(
+        (p) => p.id == widget.project.id,
+        orElse: () => widget.project,
+      ),
+      loading: () => widget.project,
+      error: (_, __) => widget.project,
+    );
+
+    final color = currentProject.colorValue;
+    final tasksState = ref.watch(taskControllerProvider(currentProject.id));
+    final isOwner = currentProject.ownerId == widget.userId;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.project.name),
+        title: Text(currentProject.name),
+        actions: [
+          if (isOwner) ...[
+            IconButton(
+              icon: const Icon(Icons.person_add_outlined),
+              tooltip: "Ajouter un membre",
+              onPressed: () => _showAddMemberDialog(currentProject),
+            ),
+            IconButton(
+              icon: const Icon(Icons.edit_outlined),
+              onPressed: _openProjectForm,
+            ),
+            IconButton(
+              icon: const Icon(Icons.delete_outline, color: Colors.red),
+              onPressed: () => _deleteProject(currentProject.id),
+            ),
+          ],
+        ],
         bottom: TabBar(
           controller: _tabController,
           isScrollable: true,
@@ -200,7 +338,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen>
                     : RefreshIndicator(
                         onRefresh: () async {
                           ref
-                              .read(taskControllerProvider(widget.project.id)
+                              .read(taskControllerProvider(currentProject.id)
                                   .notifier)
                               .loadTasks();
                         },
@@ -209,6 +347,10 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen>
                           itemCount: filtered.length,
                           itemBuilder: (ctx, i) {
                             final task = filtered[i];
+                            final isTaskCreator =
+                                task.creatorId == widget.userId;
+                            final canDeleteTask = isOwner || isTaskCreator;
+
                             return FutureBuilder<UserModel?>(
                               future: _getUser(task.assigneeId),
                               builder: (_, snap) => TaskCard(
@@ -225,15 +367,17 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen>
                                 ).then((_) {
                                   ref
                                       .read(taskControllerProvider(
-                                              widget.project.id)
+                                              currentProject.id)
                                           .notifier)
                                       .loadTasks();
                                 }),
-                                onDelete: () => _deleteTask(task.id),
+                                onDelete: canDeleteTask
+                                    ? () => _deleteTask(task.id)
+                                    : null,
                                 onStatusChange: (status) {
                                   ref
                                       .read(taskControllerProvider(
-                                              widget.project.id)
+                                              currentProject.id)
                                           .notifier)
                                       .updateStatus(task.id, status);
                                 },

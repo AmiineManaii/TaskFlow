@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:taskflow/models/project_model.dart';
 import '../../controllers/task_controller.dart';
 import '../../core/database/database_helper.dart';
 import '../../core/utils/date_utils.dart' as du;
@@ -20,32 +21,34 @@ class TaskDetailScreen extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<TaskDetailScreen> createState() =>
-      _TaskDetailScreenState();
+  ConsumerState<TaskDetailScreen> createState() => _TaskDetailScreenState();
 }
 
 class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
   late TaskModel _task;
   UserModel? _assignee;
   UserModel? _creator;
+  ProjectModel? _project;
 
   @override
   void initState() {
     super.initState();
     _task = widget.task;
-    _loadUsers();
+    _loadData();
   }
 
-  Future<void> _loadUsers() async {
+  Future<void> _loadData() async {
     final db = DatabaseHelper.instance;
     final assignee = _task.assigneeId != null
         ? await db.getUserById(_task.assigneeId!)
         : null;
     final creator = await db.getUserById(_task.creatorId);
+    final project = await db.getProjectById(_task.projectId);
     if (mounted) {
       setState(() {
         _assignee = assignee;
         _creator = creator;
+        _project = project;
       });
     }
   }
@@ -61,21 +64,47 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
         task: _task,
       ),
     ).then((_) async {
-      final updated =
-          await DatabaseHelper.instance.getTaskById(_task.id);
+      final updated = await DatabaseHelper.instance.getTaskById(_task.id);
       if (updated != null && mounted) {
         setState(() => _task = updated);
-        _loadUsers();
+        _loadData();
       }
     });
+  }
+
+  Future<void> _deleteTask() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Supprimer la tâche'),
+        content: const Text('Êtes-vous sûr de vouloir supprimer cette tâche ?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Annuler'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Supprimer'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      await ref
+          .read(taskControllerProvider(_task.projectId).notifier)
+          .deleteTask(_task.id);
+      if (mounted) Navigator.pop(context);
+    }
   }
 
   Future<void> _changeStatus(TaskStatus status) async {
     await ref
         .read(taskControllerProvider(_task.projectId).notifier)
         .updateStatus(_task.id, status);
-    final updated =
-        await DatabaseHelper.instance.getTaskById(_task.id);
+    final updated = await DatabaseHelper.instance.getTaskById(_task.id);
     if (updated != null && mounted) setState(() => _task = updated);
   }
 
@@ -84,14 +113,24 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
+    final isOwner = _project?.ownerId == widget.userId;
+    final isCreator = _task.creatorId == widget.userId;
+    final canManage = isOwner || isCreator;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Détail de la tâche'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.edit_outlined),
-            onPressed: _editTask,
-          ),
+          if (canManage) ...[
+            IconButton(
+              icon: const Icon(Icons.edit_outlined),
+              onPressed: _editTask,
+            ),
+            IconButton(
+              icon: const Icon(Icons.delete_outline, color: Colors.red),
+              onPressed: _deleteTask,
+            ),
+          ],
         ],
       ),
       body: SingleChildScrollView(
@@ -116,15 +155,13 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
                 PriorityBadge(priority: _task.priority),
                 if (_task.isOverdue)
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color:
-                          const Color(0xFFF87171).withOpacity(0.12),
+                      color: const Color(0xFFF87171).withOpacity(0.12),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                          color: const Color(0xFFF87171)
-                              .withOpacity(0.3)),
+                          color: const Color(0xFFF87171).withOpacity(0.3)),
                     ),
                     child: const Text(
                       '⚠ En retard',
@@ -169,13 +206,10 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
             const SizedBox(height: 8),
             SegmentedButton<TaskStatus>(
               segments: const [
+                ButtonSegment(value: TaskStatus.todo, label: Text('À faire')),
                 ButtonSegment(
-                    value: TaskStatus.todo, label: Text('À faire')),
-                ButtonSegment(
-                    value: TaskStatus.inProgress,
-                    label: Text('En cours')),
-                ButtonSegment(
-                    value: TaskStatus.done, label: Text('Terminé')),
+                    value: TaskStatus.inProgress, label: Text('En cours')),
+                ButtonSegment(value: TaskStatus.done, label: Text('Terminé')),
               ],
               selected: {_task.status},
               onSelectionChanged: (s) => _changeStatus(s.first),
@@ -204,9 +238,7 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
                   icon: Icons.schedule_rounded,
                   label: 'Date limite',
                   value: du.DateUtils.formatDate(_task.dueDate!),
-                  valueColor: _task.isOverdue
-                      ? const Color(0xFFF87171)
-                      : null,
+                  valueColor: _task.isOverdue ? const Color(0xFFF87171) : null,
                 ),
               _InfoRow(
                 icon: Icons.calendar_today_outlined,
@@ -238,10 +270,7 @@ class _SectionTitle extends StatelessWidget {
         text,
         style: Theme.of(context).textTheme.labelLarge?.copyWith(
               fontWeight: FontWeight.w700,
-              color: Theme.of(context)
-                  .colorScheme
-                  .onSurface
-                  .withOpacity(0.6),
+              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
             ),
       );
 }
@@ -255,14 +284,10 @@ class _InfoCard extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       decoration: BoxDecoration(
-        color: isDark
-            ? const Color(0xFF334155)
-            : Colors.white,
+        color: isDark ? const Color(0xFF334155) : Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isDark
-              ? const Color(0xFF475569)
-              : const Color(0xFFE2E8F0),
+          color: isDark ? const Color(0xFF475569) : const Color(0xFFE2E8F0),
         ),
       ),
       child: Column(
@@ -306,8 +331,8 @@ class _InfoRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
         children: [
-          Icon(icon, size: 18,
-              color: theme.colorScheme.onSurface.withOpacity(0.4)),
+          Icon(icon,
+              size: 18, color: theme.colorScheme.onSurface.withOpacity(0.4)),
           const SizedBox(width: 10),
           Text(label,
               style: theme.textTheme.bodySmall?.copyWith(

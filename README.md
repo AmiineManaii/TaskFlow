@@ -85,9 +85,51 @@ static const String baseUrl = 'https://VOTRE_ID.mockapi.io/api/v1';
 
 Voici quelques captures d'écran de l'application :
 
-| Page de connexion | Page d'inscription | Accueil | Ajouter un projet | Détails d'un projet | Ajouter une tâche | Détails d'une tâche | Paramètres | Mode sombre |
-|---|---|---|---|---|---|---|---|---|
-| ![Page de connexion](screenshots/page_login.png) | ![Page d'inscription](screenshots/page_signup.png) | ![Accueil](screenshots/home_page.png) | ![Ajouter un projet](screenshots/add_project.png) | ![Détails d'un projet](screenshots/detail_project.png) | ![Ajouter une tâche](screenshots/add_task.png) | ![Détails d'une tâche](screenshots/detail_task.png) | ![Paramètres](screenshots/setting.png) | ![Mode sombre](screenshots/dark_mode.png) |
+<div align="center">
+  <table>
+    <tr>
+      <td align="center">
+        <b>Page de connexion</b><br>
+        <img src="screenshots/page_login.png" width="200" height="500" />
+      </td>
+      <td align="center">
+        <b>Page d'inscription</b><br>
+        <img src="screenshots/page_signup.png" width="200" height="500" />
+      </td>
+      <td align="center">
+        <b>Accueil</b><br>
+        <img src="screenshots/home_page.png" width="200" height="500" />
+      </td>
+      <td align="center">
+        <b>Ajouter un projet</b><br>
+        <img src="screenshots/add_project.png" width="200" height="500" />
+      </td>
+      <td align="center">
+        <b>Détails d'un projet</b><br>
+        <img src="screenshots/detail_project.png" width="200" height="500" />
+      </td>
+    </tr>
+    <tr>
+      <td align="center">
+        <b>Ajouter une tâche</b><br>
+        <img src="screenshots/add_task.png" width="200" height="500" />
+      </td>
+      <td align="center">
+        <b>Détails d'une tâche</b><br>
+        <img src="screenshots/detail_task.png" width="200" height="500" />
+      </td>
+      <td align="center">
+        <b>Paramètres</b><br>
+        <img src="screenshots/setting.png" width="200" height="500" />
+      </td>
+      <td align="center">
+        <b>Mode sombre</b><br>
+        <img src="screenshots/dark_mode.png" width="200" height="500" />
+      </td>
+      <td></td>
+    </tr>
+  </table>
+</div>
 
 
 ## 👤 Auteur

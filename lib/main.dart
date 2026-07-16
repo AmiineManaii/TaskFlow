@@ -6,7 +6,7 @@ import 'core/utils/notification_service.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialiser les notifications
+  
   await NotificationService.init();
   await NotificationService.requestPermissions();
 

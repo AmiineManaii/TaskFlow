@@ -83,23 +83,13 @@ static const String baseUrl = 'https://VOTRE_ID.mockapi.io/api/v1';
 
 ## 📸 Captures d'écran
 
-> (À ajouter après le premier lancement)
+Voici quelques captures d'écran de l'application :
 
-| Login | Projets | Tâches | Détail | Paramètres |
-|---|---|---|---|---|
-| ... | ... | ... | ... | ... |
+| Page de connexion | Page d'inscription | Accueil | Ajouter un projet | Détails d'un projet | Ajouter une tâche | Détails d'une tâche | Paramètres | Mode sombre |
+|---|---|---|---|---|---|---|---|---|
+| ![Page de connexion](screenshots/page_login.png) | ![Page d'inscription](screenshots/page_signup.png) | ![Accueil](screenshots/home_page.png) | ![Ajouter un projet](screenshots/add_project.png) | ![Détails d'un projet](screenshots/detail_project.png) | ![Ajouter une tâche](screenshots/add_task.png) | ![Détails d'une tâche](screenshots/detail_task.png) | ![Paramètres](screenshots/setting.png) | ![Mode sombre](screenshots/dark_mode.png) |
 
-## 📊 Évaluation
-
-| Critère | Points | Couvert |
-|---|---|---|
-| Fonctionnalités | 8pts | ✅ Auth, CRUD, Projets, Collaboration, SQLite |
-| Architecture MVC | 4pts | ✅ MVC strict |
-| UI/UX | 3pts | ✅ Material 3, Dark mode, animations |
-| Riverpod | 2pts | ✅ StateNotifier partout |
-| Bonus | 3pts | ✅ Notifications, Dark mode, Sync, i18n |
-| **Total** | **20pts** | |
 
 ## 👤 Auteur
 
-Mini-projet Flutter – Validation 24/04/2026
+Projet développé par **Mohamed Amine MANAI**
